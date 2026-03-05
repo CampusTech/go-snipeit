@@ -3,8 +3,56 @@ package snipeit
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"time"
 )
+
+// FlexInt handles JSON fields that may be returned as either a string or an int.
+// The Snipe-IT API is inconsistent about numeric field types — some fields like
+// warranty_months may be returned as a quoted string (e.g. "36") instead of a
+// bare integer.
+type FlexInt int
+
+// UnmarshalJSON implements json.Unmarshaler, accepting both integer and string
+// representations of a number.
+func (fi *FlexInt) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" || string(data) == `""` {
+		*fi = 0
+		return nil
+	}
+	// Try int first
+	var i int
+	if err := json.Unmarshal(data, &i); err == nil {
+		*fi = FlexInt(i)
+		return nil
+	}
+	// Try string
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		if s == "" {
+			*fi = 0
+			return nil
+		}
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("FlexInt: cannot parse %q as int: %w", s, err)
+		}
+		*fi = FlexInt(n)
+		return nil
+	}
+	return fmt.Errorf("FlexInt: cannot unmarshal %s", string(data))
+}
+
+// MarshalJSON implements json.Marshaler, always encoding as a bare integer.
+func (fi FlexInt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(int(fi))
+}
+
+// Int returns the underlying int value.
+func (fi FlexInt) Int() int {
+	return int(fi)
+}
 
 // SnipeTime represents a time field from the Snipe-IT API.
 // Snipe-IT returns times as objects with "datetime" and "formatted" fields.
@@ -199,8 +247,9 @@ type Asset struct {
 	// PurchaseCost of the asset
 	PurchaseCost   string      `json:"purchase_cost,omitempty"`
 	
-	// WarrantyMonths is the length of the warranty in months
-	WarrantyMonths int         `json:"warranty_months,omitempty"`
+	// WarrantyMonths is the length of the warranty in months.
+	// Uses FlexInt because the Snipe-IT API may return this as a string.
+	WarrantyMonths FlexInt     `json:"warranty_months,omitempty"`
 	
 	// User to whom the asset is assigned (if any)
 	User           *User       `json:"assigned_to,omitempty"`
