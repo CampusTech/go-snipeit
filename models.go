@@ -64,6 +64,54 @@ func (fi FlexInt) Int() int {
 	return int(fi)
 }
 
+// FlexBool handles JSON fields that may be returned as a bool, an int (0/1),
+// or a string ("true"/"false"/"0"/"1"). The Snipe-IT API returns some boolean
+// fields as integers.
+type FlexBool bool
+
+// UnmarshalJSON implements json.Unmarshaler, accepting bool, int (0/1), and
+// string ("true"/"false"/"0"/"1") representations.
+func (fb *FlexBool) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*fb = false
+		return nil
+	}
+	// Try bool first
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		*fb = FlexBool(b)
+		return nil
+	}
+	// Try number (0/1)
+	var n int
+	if err := json.Unmarshal(data, &n); err == nil {
+		*fb = FlexBool(n != 0)
+		return nil
+	}
+	// Try string
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		switch strings.ToLower(s) {
+		case "true", "1":
+			*fb = true
+		default:
+			*fb = false
+		}
+		return nil
+	}
+	return fmt.Errorf("FlexBool: cannot unmarshal %s", string(data))
+}
+
+// MarshalJSON implements json.Marshaler, always encoding as a JSON boolean.
+func (fb FlexBool) MarshalJSON() ([]byte, error) {
+	return json.Marshal(bool(fb))
+}
+
+// Bool returns the underlying bool value.
+func (fb FlexBool) Bool() bool {
+	return bool(fb)
+}
+
 // SnipeTime represents a time field from the Snipe-IT API.
 // Snipe-IT returns times as objects with "datetime" and "formatted" fields.
 type SnipeTime struct {
@@ -681,8 +729,9 @@ type Field struct {
 	// FieldValuesArray contains possible values as a slice
 	FieldValuesArray []string `json:"field_values_array,omitempty"`
 
-	// ShowInListView indicates if the field is shown in asset list views
-	ShowInListView bool `json:"show_in_listview,omitempty"`
+	// ShowInListView indicates if the field is shown in asset list views.
+	// Uses FlexBool because the Snipe-IT API returns this as 0/1 instead of bool.
+	ShowInListView FlexBool `json:"show_in_listview,omitempty"`
 
 	// Type is the field type
 	Type string `json:"type,omitempty"`
