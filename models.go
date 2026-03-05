@@ -134,8 +134,12 @@ type CommonFields struct {
 	// Image is a URL to the image associated with the resource
 	Image       string    `json:"image,omitempty"`
 	
-	// CustomFields contains any custom fields defined for the resource
-	CustomFields struct{} `json:"custom_fields,omitempty"`
+	// CustomFields contains any custom fields defined for the resource.
+	// When reading from the API, Snipe-IT returns these as a nested object
+	// under "custom_fields". When writing, they must be sent as top-level
+	// keys (e.g. "_snipeit_ram_2"). The Asset type's MarshalJSON handles
+	// this flattening automatically.
+	CustomFields map[string]string `json:"-"`
 }
 
 // ListOptions specifies common options for paginated API methods.
@@ -208,6 +212,34 @@ type Asset struct {
 	// AssignedType indicates what type of entity the asset is assigned to
 	// (e.g., "user", "location", "asset")
 	AssignedType   string      `json:"assigned_type,omitempty"`
+}
+
+// MarshalJSON implements json.Marshaler for Asset.
+// Custom fields are flattened to top-level keys as the Snipe-IT API expects
+// when creating or updating assets.
+func (a Asset) MarshalJSON() ([]byte, error) {
+	// Use an alias to avoid infinite recursion
+	type AssetAlias Asset
+	data, err := json.Marshal(AssetAlias(a))
+	if err != nil {
+		return nil, err
+	}
+	if len(a.CustomFields) == 0 {
+		return data, nil
+	}
+	// Merge custom fields into the top-level JSON object
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	for k, v := range a.CustomFields {
+		encoded, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		m[k] = encoded
+	}
+	return json.Marshal(m)
 }
 
 // User represents a Snipe-IT user account.
