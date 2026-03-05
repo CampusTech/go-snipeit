@@ -22,6 +22,17 @@ type AssetResponse struct {
 	Asset
 }
 
+// AssetCreateResponse represents the API response for asset create and update
+// operations. Unlike GET which returns the asset directly, create/update
+// responses wrap the result in a status/payload envelope:
+//
+//	{"status":"success","messages":"...","payload":{...}}
+//	{"status":"error","messages":{...}}
+type AssetCreateResponse struct {
+	Response
+	Payload Asset `json:"payload"`
+}
+
 // AssetsResponse represents the API response for multiple assets.
 // It embeds the standard Response struct and adds a Rows field
 // that contains a slice of Assets.
@@ -115,7 +126,7 @@ func (s *AssetsService) GetContext(ctx context.Context, id int) (*AssetResponse,
 // - Serial: The manufacturer's serial number
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-create
-func (s *AssetsService) Create(asset Asset) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) Create(asset Asset) (*AssetCreateResponse, *http.Response, error) {
 	return s.CreateContext(context.Background(), asset)
 }
 
@@ -132,13 +143,13 @@ func (s *AssetsService) Create(asset Asset) (*AssetResponse, *http.Response, err
 // - Serial: The manufacturer's serial number
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-create
-func (s *AssetsService) CreateContext(ctx context.Context, asset Asset) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) CreateContext(ctx context.Context, asset Asset) (*AssetCreateResponse, *http.Response, error) {
 	req, err := s.client.newRequestWithContext(ctx, http.MethodPost, "api/v1/hardware", asset)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var response AssetResponse
+	var response AssetCreateResponse
 	resp, err := s.client.Do(req, &response)
 	if err != nil {
 		return nil, resp, err
@@ -154,7 +165,7 @@ func (s *AssetsService) CreateContext(ctx context.Context, asset Asset) (*AssetR
 // the fields you want to modify; other fields can be omitted.
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-update
-func (s *AssetsService) Update(id int, asset Asset) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) Update(id int, asset Asset) (*AssetCreateResponse, *http.Response, error) {
 	return s.UpdateContext(context.Background(), id, asset)
 }
 
@@ -166,14 +177,14 @@ func (s *AssetsService) Update(id int, asset Asset) (*AssetResponse, *http.Respo
 // the fields you want to modify; other fields can be omitted.
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-update
-func (s *AssetsService) UpdateContext(ctx context.Context, id int, asset Asset) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) UpdateContext(ctx context.Context, id int, asset Asset) (*AssetCreateResponse, *http.Response, error) {
 	u := fmt.Sprintf("api/v1/hardware/%d", id)
 	req, err := s.client.newRequestWithContext(ctx, http.MethodPut, u, asset)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var response AssetResponse
+	var response AssetCreateResponse
 	resp, err := s.client.Do(req, &response)
 	if err != nil {
 		return nil, resp, err
