@@ -453,8 +453,11 @@ type Fieldset struct {
 	// CommonFields contains standard fields like ID, Name, etc.
 	CommonFields
 
-	// Fields contains the custom fields in this fieldset
-	Fields []Field `json:"fields,omitempty"`
+	// Fields contains the custom fields in this fieldset as raw JSON.
+	// The Snipe-IT API may return this as an array of objects (when fields exist)
+	// or as an empty object {} (when no fields are associated), so we use
+	// json.RawMessage to handle both cases gracefully.
+	Fields json.RawMessage `json:"fields,omitempty"`
 
 	// ModelsCount is the number of models using this fieldset
 	ModelsCount int `json:"models_count,omitempty"`
