@@ -81,6 +81,9 @@ type Client struct {
     
     // DisableRetries, if true, disables automatic retries for failed requests
     disableRetries bool
+
+    // Logger for debug logging of requests and responses
+    logger Logger
 }
 
 // NewClient returns a new Snipe-IT API client.
@@ -174,6 +177,9 @@ func NewClientWithOptions(baseURL, token string, options *ClientOptions) (*Clien
         c.retryPolicy = options.RetryPolicy
     }
     
+    // Configure logger
+    c.logger = options.Logger
+
     // Initialize services
     c.Assets = &AssetsService{client: c}
     c.Locations = &LocationsService{client: c}
@@ -299,6 +305,16 @@ func (c *Client) DoWithOptions(req *http.Request, v interface{}, opts *RequestOp
 
 // doOnce performs a single API request without any retry logic.
 func (c *Client) doOnce(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
+    // Log request if logger is configured
+    if c.logger != nil {
+        var reqBody []byte
+        if req.Body != nil {
+            reqBody, _ = io.ReadAll(req.Body)
+            req.Body = io.NopCloser(bytes.NewReader(reqBody))
+        }
+        c.logger.LogRequest(req.Method, req.URL.String(), reqBody)
+    }
+
     resp, err := c.client.Do(req)
     if err != nil {
         // If the error is due to context cancellation or deadline exceeded,
@@ -312,25 +328,32 @@ func (c *Client) doOnce(ctx context.Context, req *http.Request, v interface{}) (
     }
     defer resp.Body.Close()
 
+    // Read the full response body so we can log it and still decode
+    respBody, readErr := io.ReadAll(resp.Body)
+    if readErr != nil {
+        return resp, readErr
+    }
+
+    // Log response if logger is configured
+    if c.logger != nil {
+        c.logger.LogResponse(req.Method, req.URL.String(), resp.StatusCode, respBody)
+    }
+
     // If StatusCode is not in the 200 range, something went wrong
-    if c := resp.StatusCode; 200 > c || c > 299 {
+    if sc := resp.StatusCode; 200 > sc || sc > 299 {
         errorResponse := &ErrorResponse{Response: resp}
-        data, err := io.ReadAll(resp.Body)
-        if err == nil && data != nil {
-            json.Unmarshal(data, errorResponse)
+        if len(respBody) > 0 {
+            json.Unmarshal(respBody, errorResponse)
         }
         return resp, errorResponse
     }
 
     if v != nil {
         if w, ok := v.(io.Writer); ok {
-            _, err = io.Copy(w, resp.Body)
+            _, err = w.Write(respBody)
         } else {
-            decErr := json.NewDecoder(resp.Body).Decode(v)
-            if decErr == io.EOF {
-                decErr = nil // Ignore EOF errors caused by an empty response body
-            }
-            if decErr != nil {
+            decErr := json.Unmarshal(respBody, v)
+            if decErr != nil && len(respBody) > 0 {
                 err = decErr
             }
         }
