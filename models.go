@@ -3,8 +3,66 @@ package snipeit
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
+
+// FlexInt handles JSON fields that may be returned as either a string or an int.
+// The Snipe-IT API is inconsistent about numeric field types — some fields like
+// warranty_months may be returned as a quoted string (e.g. "36") instead of a
+// bare integer.
+type FlexInt int
+
+// UnmarshalJSON implements json.Unmarshaler, accepting both integer and string
+// representations of a number.
+func (fi *FlexInt) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" || string(data) == `""` {
+		*fi = 0
+		return nil
+	}
+	// Try int first
+	var i int
+	if err := json.Unmarshal(data, &i); err == nil {
+		*fi = FlexInt(i)
+		return nil
+	}
+	// Try string
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		if s == "" {
+			*fi = 0
+			return nil
+		}
+		// Try direct parse first
+		if n, err := strconv.Atoi(s); err == nil {
+			*fi = FlexInt(n)
+			return nil
+		}
+		// Handle strings like "36 months" — extract leading number
+		if idx := strings.IndexFunc(s, func(r rune) bool {
+			return r != '-' && (r < '0' || r > '9')
+		}); idx > 0 {
+			if n, err := strconv.Atoi(strings.TrimSpace(s[:idx])); err == nil {
+				*fi = FlexInt(n)
+				return nil
+			}
+		}
+		return fmt.Errorf("FlexInt: cannot parse %q as int", s)
+	}
+	return fmt.Errorf("FlexInt: cannot unmarshal %s", string(data))
+}
+
+// MarshalJSON implements json.Marshaler, always encoding as a bare integer.
+func (fi FlexInt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(int(fi))
+}
+
+// Int returns the underlying int value.
+func (fi FlexInt) Int() int {
+	return int(fi)
+}
 
 // SnipeTime represents a time field from the Snipe-IT API.
 // Snipe-IT returns times as objects with "datetime" and "formatted" fields.
@@ -71,6 +129,71 @@ func (st SnipeTime) MarshalJSON() ([]byte, error) {
 	return json.Marshal(st.Time.Format("2006-01-02 15:04:05"))
 }
 
+// FlexUser handles the Snipe-IT API's polymorphic "assigned_to" field.
+// On GET responses, the API returns a full User object. On create/update
+// response payloads, the API returns just the user's ID as a number, or null.
+type FlexUser struct {
+	User
+}
+
+// UnmarshalJSON implements json.Unmarshaler for FlexUser.
+func (fu *FlexUser) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*fu = FlexUser{}
+		return nil
+	}
+	// Try as a number (create/update response)
+	var id int
+	if err := json.Unmarshal(data, &id); err == nil {
+		fu.User = User{}
+		fu.User.ID = id
+		return nil
+	}
+	// Otherwise unmarshal as a full User object (GET response)
+	var u User
+	if err := json.Unmarshal(data, &u); err != nil {
+		return fmt.Errorf("FlexUser: cannot unmarshal %s: %w", string(data), err)
+	}
+	fu.User = u
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler for FlexUser.
+// Always marshals as just the user ID for write operations.
+func (fu FlexUser) MarshalJSON() ([]byte, error) {
+	if fu.User.ID == 0 {
+		return []byte("null"), nil
+	}
+	return json.Marshal(fu.User.ID)
+}
+
+// FlexMessage handles the Snipe-IT API's "messages" field which may be
+// returned as a plain string (e.g. "Asset does not exist.") or as an
+// object with field-level validation errors (e.g. {"model_id":["The model id field is required."]}).
+type FlexMessage string
+
+// UnmarshalJSON implements json.Unmarshaler for FlexMessage.
+func (fm *FlexMessage) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*fm = ""
+		return nil
+	}
+	// Try string first
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*fm = FlexMessage(s)
+		return nil
+	}
+	// Must be an object — store the raw JSON
+	*fm = FlexMessage(string(data))
+	return nil
+}
+
+// String returns the message as a string.
+func (fm FlexMessage) String() string {
+	return string(fm)
+}
+
 // Response represents a standard response structure from the Snipe-IT API.
 // Different API endpoints may use different fields within this structure.
 // For example, list endpoints typically use Total, Count, and Rows, while
@@ -78,28 +201,30 @@ func (st SnipeTime) MarshalJSON() ([]byte, error) {
 type Response struct {
 	// Status of the API request, typically "success" or "error"
 	Status   string      `json:"status"`
-	
-	// Message provided by the API, often used for error information
-	Message  string      `json:"messages,omitempty"`
-	
+
+	// Message provided by the API, often used for error information.
+	// Uses FlexMessage because the API returns this as either a plain string
+	// or a JSON object with field-level validation errors.
+	Message  FlexMessage `json:"messages,omitempty"`
+
 	// Payload contains the primary data for single-item responses
 	Payload  interface{} `json:"payload,omitempty"`
-	
+
 	// Total number of items available (for paginated responses)
 	Total    int         `json:"total,omitempty"`
-	
+
 	// Count of items in the current response
 	Count    int         `json:"count,omitempty"`
-	
+
 	// Rows contains the data for list/collection responses
 	Rows     interface{} `json:"rows,omitempty"`
-	
+
 	// Offset from the beginning of the collection (for pagination)
 	Offset   int         `json:"offset,omitempty"`
-	
+
 	// Limit on the number of items returned (for pagination)
 	Limit    int         `json:"limit,omitempty"`
-	
+
 	// PageSize indicates the number of items per page (for pagination)
 	PageSize int         `json:"pagesize,omitempty"`
 }
@@ -134,8 +259,12 @@ type CommonFields struct {
 	// Image is a URL to the image associated with the resource
 	Image       string    `json:"image,omitempty"`
 	
-	// CustomFields contains any custom fields defined for the resource
-	CustomFields struct{} `json:"custom_fields,omitempty"`
+	// CustomFields contains any custom fields defined for the resource.
+	// When reading from the API, Snipe-IT returns these as a nested object
+	// under "custom_fields". When writing, they must be sent as top-level
+	// keys (e.g. "_snipeit_ram_2"). The Asset type's MarshalJSON handles
+	// this flattening automatically.
+	CustomFields map[string]string `json:"-"`
 }
 
 // ListOptions specifies common options for paginated API methods.
@@ -199,15 +328,94 @@ type Asset struct {
 	// PurchaseCost of the asset
 	PurchaseCost   string      `json:"purchase_cost,omitempty"`
 	
-	// WarrantyMonths is the length of the warranty in months
-	WarrantyMonths int         `json:"warranty_months,omitempty"`
+	// WarrantyMonths is the length of the warranty in months.
+	// Uses FlexInt because the Snipe-IT API may return this as a string.
+	WarrantyMonths FlexInt     `json:"warranty_months,omitempty"`
 	
-	// User to whom the asset is assigned (if any)
-	User           *User       `json:"assigned_to,omitempty"`
+	// User to whom the asset is assigned (if any).
+	// Uses FlexUser because the API returns a full User object on GET but
+	// just a user ID number on create/update response payloads.
+	User           *FlexUser   `json:"assigned_to,omitempty"`
 	
 	// AssignedType indicates what type of entity the asset is assigned to
 	// (e.g., "user", "location", "asset")
 	AssignedType   string      `json:"assigned_type,omitempty"`
+}
+
+// MarshalJSON implements json.Marshaler for Asset.
+// The Snipe-IT API returns nested objects for related resources (model,
+// status_label, category, etc.) on GET, but expects flat ID fields
+// (model_id, status_id, category_id, etc.) on POST/PUT. This method
+// converts the nested objects to flat IDs and also flattens custom fields
+// to top-level keys.
+func (a Asset) MarshalJSON() ([]byte, error) {
+	// Build a flat map for the write API
+	m := make(map[string]interface{})
+
+	// Core fields
+	if a.ID != 0 {
+		m["id"] = a.ID
+	}
+	if a.Name != "" {
+		m["name"] = a.Name
+	}
+	if a.AssetTag != "" {
+		m["asset_tag"] = a.AssetTag
+	}
+	if a.Serial != "" {
+		m["serial"] = a.Serial
+	}
+	if a.ModelNumber != "" {
+		m["model_number"] = a.ModelNumber
+	}
+	if a.Notes != "" {
+		m["notes"] = a.Notes
+	}
+	if a.PurchaseCost != "" {
+		m["purchase_cost"] = a.PurchaseCost
+	}
+	if a.PurchaseDate != nil && !a.PurchaseDate.IsZero() {
+		m["purchase_date"] = a.PurchaseDate
+	}
+	if int(a.WarrantyMonths) != 0 {
+		m["warranty_months"] = a.WarrantyMonths
+	}
+	if a.AssignedType != "" {
+		m["assigned_type"] = a.AssignedType
+	}
+	if a.Image != "" {
+		m["image"] = a.Image
+	}
+
+	// Flatten nested objects to _id fields for the write API
+	if a.Model.ID != 0 {
+		m["model_id"] = a.Model.ID
+	}
+	if a.StatusLabel.ID != 0 {
+		m["status_id"] = a.StatusLabel.ID
+	}
+	if a.Category.ID != 0 {
+		m["category_id"] = a.Category.ID
+	}
+	if a.Manufacturer.ID != 0 {
+		m["manufacturer_id"] = a.Manufacturer.ID
+	}
+	if a.Supplier.ID != 0 {
+		m["supplier_id"] = a.Supplier.ID
+	}
+	if a.Location.ID != 0 {
+		m["rtd_location_id"] = a.Location.ID
+	}
+	if a.User != nil && a.User.User.ID != 0 {
+		m["assigned_to"] = a.User.User.ID
+	}
+
+	// Flatten custom fields to top-level keys
+	for k, v := range a.CustomFields {
+		m[k] = v
+	}
+
+	return json.Marshal(m)
 }
 
 // User represents a Snipe-IT user account.
