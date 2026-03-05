@@ -374,6 +374,12 @@ func (c *Client) newRequest(method, urlStr string, body interface{}) (*http.Requ
     return c.newRequestWithContext(context.Background(), method, urlStr, body)
 }
 
+// NewRequest creates an API request. This is an exported wrapper around newRequest
+// for use by callers that need to make direct API calls beyond the built-in services.
+func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
+    return c.newRequest(method, urlStr, body)
+}
+
 // newRequestWithContext creates an API request with the provided context.
 //
 // ctx is the context for the request. A context with a deadline or timeout
