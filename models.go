@@ -342,6 +342,39 @@ type Asset struct {
 	AssignedType   string      `json:"assigned_type,omitempty"`
 }
 
+// UnmarshalJSON implements json.Unmarshaler for Asset.
+// The Snipe-IT API returns custom fields as a nested object under
+// "custom_fields" where each entry has "field" (db column name) and
+// "value". This method extracts those into the CustomFields map keyed
+// by db column name, making them easy to compare with write-side values.
+func (a *Asset) UnmarshalJSON(data []byte) error {
+	// Use an alias to avoid infinite recursion
+	type AssetAlias Asset
+	var alias AssetAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*a = Asset(alias)
+
+	// Parse custom_fields from the raw JSON
+	var raw struct {
+		CustomFields map[string]struct {
+			Field string `json:"field"`
+			Value string `json:"value"`
+		} `json:"custom_fields"`
+	}
+	if err := json.Unmarshal(data, &raw); err == nil && len(raw.CustomFields) > 0 {
+		a.CustomFields = make(map[string]string, len(raw.CustomFields))
+		for _, cf := range raw.CustomFields {
+			if cf.Field != "" {
+				a.CustomFields[cf.Field] = cf.Value
+			}
+		}
+	}
+
+	return nil
+}
+
 // MarshalJSON implements json.Marshaler for Asset.
 // The Snipe-IT API returns nested objects for related resources (model,
 // status_label, category, etc.) on GET, but expects flat ID fields
