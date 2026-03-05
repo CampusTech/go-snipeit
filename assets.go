@@ -232,7 +232,7 @@ func (s *AssetsService) DeleteContext(ctx context.Context, id int) (*http.Respon
 // - note: Note about the checkout
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-checkout
-func (s *AssetsService) Checkout(id int, checkout map[string]interface{}) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) Checkout(id int, checkout map[string]interface{}) (*AssetCreateResponse, *http.Response, error) {
 	return s.CheckoutContext(context.Background(), id, checkout)
 }
 
@@ -249,14 +249,14 @@ func (s *AssetsService) Checkout(id int, checkout map[string]interface{}) (*Asse
 // - note: Note about the checkout
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-checkout
-func (s *AssetsService) CheckoutContext(ctx context.Context, id int, checkout map[string]interface{}) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) CheckoutContext(ctx context.Context, id int, checkout map[string]interface{}) (*AssetCreateResponse, *http.Response, error) {
 	u := fmt.Sprintf("api/v1/hardware/%d/checkout", id)
 	req, err := s.client.newRequestWithContext(ctx, http.MethodPost, u, checkout)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var response AssetResponse
+	var response AssetCreateResponse
 	resp, err := s.client.Do(req, &response)
 	if err != nil {
 		return nil, resp, err
@@ -275,7 +275,7 @@ func (s *AssetsService) CheckoutContext(ctx context.Context, id int, checkout ma
 // - checkin_at: Date of checkin (YYYY-MM-DD format)
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-checkin
-func (s *AssetsService) Checkin(id int, checkin map[string]interface{}) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) Checkin(id int, checkin map[string]interface{}) (*AssetCreateResponse, *http.Response, error) {
 	return s.CheckinContext(context.Background(), id, checkin)
 }
 
@@ -290,14 +290,14 @@ func (s *AssetsService) Checkin(id int, checkin map[string]interface{}) (*AssetR
 // - checkin_at: Date of checkin (YYYY-MM-DD format)
 //
 // Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-checkin
-func (s *AssetsService) CheckinContext(ctx context.Context, id int, checkin map[string]interface{}) (*AssetResponse, *http.Response, error) {
+func (s *AssetsService) CheckinContext(ctx context.Context, id int, checkin map[string]interface{}) (*AssetCreateResponse, *http.Response, error) {
 	u := fmt.Sprintf("api/v1/hardware/%d/checkin", id)
 	req, err := s.client.newRequestWithContext(ctx, http.MethodPost, u, checkin)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var response AssetResponse
+	var response AssetCreateResponse
 	resp, err := s.client.Do(req, &response)
 	if err != nil {
 		return nil, resp, err
