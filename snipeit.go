@@ -73,6 +73,15 @@ type Client struct {
     // Fieldsets is the service for interacting with the custom fieldsets endpoint
     Fieldsets *FieldsetsService
 
+    // Models is the service for interacting with the models endpoint
+    Models *ModelsService
+
+    // Users is the service for interacting with the users endpoint
+    Users *UsersService
+
+    // Suppliers is the service for interacting with the suppliers endpoint
+    Suppliers *SuppliersService
+
     // Rate limiter for controlling request frequency
     rateLimiter RateLimiter
     
@@ -186,6 +195,9 @@ func NewClientWithOptions(baseURL, token string, options *ClientOptions) (*Clien
     c.StatusLabels = &StatusLabelsService{client: c}
     c.Fields = &FieldsService{client: c}
     c.Fieldsets = &FieldsetsService{client: c}
+    c.Models = &ModelsService{client: c}
+    c.Users = &UsersService{client: c}
+    c.Suppliers = &SuppliersService{client: c}
     
     return c, nil
 }

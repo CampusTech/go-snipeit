@@ -193,6 +193,41 @@ func (s *AssetsService) UpdateContext(ctx context.Context, id int, asset Asset) 
 	return &response, resp, nil
 }
 
+// Patch partially updates an existing asset in Snipe-IT using HTTP PATCH.
+// Unlike Update (which uses PUT), Patch only modifies the fields included
+// in the request body, leaving all other fields unchanged.
+//
+// id is the unique identifier of the asset to update.
+// asset contains only the fields to modify.
+//
+// Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-partial-update
+func (s *AssetsService) Patch(id int, asset Asset) (*AssetCreateResponse, *http.Response, error) {
+	return s.PatchContext(context.Background(), id, asset)
+}
+
+// PatchContext partially updates an existing asset with the provided context.
+//
+// ctx is the context for the request.
+// id is the unique identifier of the asset to update.
+// asset contains only the fields to modify.
+//
+// Snipe-IT API docs: https://snipe-it.readme.io/reference/hardware-partial-update
+func (s *AssetsService) PatchContext(ctx context.Context, id int, asset Asset) (*AssetCreateResponse, *http.Response, error) {
+	u := fmt.Sprintf("api/v1/hardware/%d", id)
+	req, err := s.client.newRequestWithContext(ctx, http.MethodPatch, u, asset)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var response AssetCreateResponse
+	resp, err := s.client.Do(req, &response)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return &response, resp, nil
+}
+
 // Delete deletes an asset from Snipe-IT.
 //
 // id is the unique identifier of the asset to delete.
