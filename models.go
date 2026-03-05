@@ -549,8 +549,9 @@ type Model struct {
 	// FieldsetID is the ID of the custom fieldset associated with this model
 	FieldsetID    int         `json:"fieldset_id,omitempty"`
 	
-	// EOL is the End of Life in months for this model
-	EOL           int         `json:"eol,omitempty"`
+	// EOL is the End of Life in months for this model.
+	// Uses FlexInt because the Snipe-IT API may return this as a string.
+	EOL           FlexInt     `json:"eol,omitempty"`
 	
 	// AssetsCount is the number of assets of this model
 	AssetsCount   int         `json:"assets_count,omitempty"`
@@ -577,7 +578,7 @@ func (m Model) MarshalJSON() ([]byte, error) {
 	if m.FieldsetID != 0 {
 		mm["fieldset_id"] = m.FieldsetID
 	}
-	if m.EOL != 0 {
+	if m.EOL.Int() != 0 {
 		mm["eol"] = m.EOL
 	}
 	if m.Category.ID != 0 {
