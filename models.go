@@ -496,3 +496,47 @@ type Supplier struct {
 	// AssetsCount is the number of assets from this supplier
 	AssetsCount int    `json:"assets_count,omitempty"`
 }
+
+// Field represents a Snipe-IT custom field.
+// Custom fields extend the data stored on assets beyond the built-in fields.
+type Field struct {
+	// CommonFields contains standard fields like ID, Name, etc.
+	CommonFields
+
+	// DBColumnName is the database column name (e.g. "_snipeit_ram_2")
+	DBColumnName string `json:"db_column_name,omitempty"`
+
+	// Element is the form element type (e.g. "text", "textarea", "checkbox")
+	Element string `json:"element,omitempty"`
+
+	// Format is the validation format (e.g. "numeric", "BOOLEAN", "URL")
+	Format string `json:"format,omitempty"`
+
+	// HelpText is displayed to users when filling in the field
+	HelpText string `json:"help_text,omitempty"`
+
+	// FieldValues contains possible values for list-type fields
+	FieldValues string `json:"field_values,omitempty"`
+
+	// FieldValuesArray contains possible values as a slice
+	FieldValuesArray []string `json:"field_values_array,omitempty"`
+
+	// ShowInListView indicates if the field is shown in asset list views
+	ShowInListView bool `json:"show_in_listview,omitempty"`
+
+	// Type is the field type
+	Type string `json:"type,omitempty"`
+}
+
+// Fieldset represents a Snipe-IT custom fieldset.
+// Fieldsets group custom fields together and are associated with models.
+type Fieldset struct {
+	// CommonFields contains standard fields like ID, Name, etc.
+	CommonFields
+
+	// Fields contains the custom fields in this fieldset
+	Fields []Field `json:"fields,omitempty"`
+
+	// ModelsCount is the number of models using this fieldset
+	ModelsCount int `json:"models_count,omitempty"`
+}
