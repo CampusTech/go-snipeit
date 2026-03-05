@@ -556,6 +556,40 @@ type Model struct {
 	AssetsCount   int         `json:"assets_count,omitempty"`
 }
 
+// MarshalJSON implements json.Marshaler for Model.
+// The Snipe-IT API returns nested objects for Category and Manufacturer on GET,
+// but expects flat ID fields (category_id, manufacturer_id) on POST/PUT.
+func (m Model) MarshalJSON() ([]byte, error) {
+	mm := make(map[string]interface{})
+
+	if m.ID != 0 {
+		mm["id"] = m.ID
+	}
+	if m.Name != "" {
+		mm["name"] = m.Name
+	}
+	if m.ModelNumber != "" {
+		mm["model_number"] = m.ModelNumber
+	}
+	if m.Notes != "" {
+		mm["notes"] = m.Notes
+	}
+	if m.FieldsetID != 0 {
+		mm["fieldset_id"] = m.FieldsetID
+	}
+	if m.EOL != 0 {
+		mm["eol"] = m.EOL
+	}
+	if m.Category.ID != 0 {
+		mm["category_id"] = m.Category.ID
+	}
+	if m.Manufacturer.ID != 0 {
+		mm["manufacturer_id"] = m.Manufacturer.ID
+	}
+
+	return json.Marshal(mm)
+}
+
 // Category represents a Snipe-IT category.
 // Categories group models into logical collections (e.g., "Laptops", "Monitors").
 type Category struct {
