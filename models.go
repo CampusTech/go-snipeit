@@ -49,7 +49,9 @@ func (fi *FlexInt) UnmarshalJSON(data []byte) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("FlexInt: cannot parse %q as int", s)
+		// Non-numeric strings like "None" are treated as zero
+		*fi = 0
+		return nil
 	}
 	return fmt.Errorf("FlexInt: cannot unmarshal %s", string(data))
 }
