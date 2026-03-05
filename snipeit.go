@@ -61,6 +61,18 @@ type Client struct {
     // Assets is the service for interacting with the assets endpoint
     Assets *AssetsService
 
+    // Locations is the service for interacting with the locations endpoint
+    Locations *LocationsService
+
+    // StatusLabels is the service for interacting with the status labels endpoint
+    StatusLabels *StatusLabelsService
+
+    // Fields is the service for interacting with the custom fields endpoint
+    Fields *FieldsService
+
+    // Fieldsets is the service for interacting with the custom fieldsets endpoint
+    Fieldsets *FieldsetsService
+
     // Rate limiter for controlling request frequency
     rateLimiter RateLimiter
     
@@ -164,6 +176,10 @@ func NewClientWithOptions(baseURL, token string, options *ClientOptions) (*Clien
     
     // Initialize services
     c.Assets = &AssetsService{client: c}
+    c.Locations = &LocationsService{client: c}
+    c.StatusLabels = &StatusLabelsService{client: c}
+    c.Fields = &FieldsService{client: c}
+    c.Fieldsets = &FieldsetsService{client: c}
     
     return c, nil
 }
