@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/michellepellon/go-snipeit"
+	"github.com/CampusTech/go-snipeit"
 )
 
 func main() {

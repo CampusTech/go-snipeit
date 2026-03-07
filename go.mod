@@ -1,4 +1,4 @@
-module github.com/michellepellon/go-snipeit
+module github.com/CampusTech/go-snipeit
 
 go 1.24
 

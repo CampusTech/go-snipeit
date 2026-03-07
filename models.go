@@ -589,6 +589,9 @@ func (m Model) MarshalJSON() ([]byte, error) {
 	if m.Manufacturer.ID != 0 {
 		mm["manufacturer_id"] = m.Manufacturer.ID
 	}
+	if m.Image != "" {
+		mm["image"] = m.Image
+	}
 
 	return json.Marshal(mm)
 }
