@@ -387,6 +387,9 @@ type Asset struct {
 	// just a user ID number on create/update response payloads.
 	User           *FlexUser   `json:"assigned_to,omitempty"`
 	
+	// OrderNumber is the order number associated with the asset purchase
+	OrderNumber    string      `json:"order_number,omitempty"`
+
 	// AssignedType indicates what type of entity the asset is assigned to
 	// (e.g., "user", "location", "asset")
 	AssignedType   string      `json:"assigned_type,omitempty"`
@@ -462,6 +465,9 @@ func (a Asset) MarshalJSON() ([]byte, error) {
 	}
 	if int(a.WarrantyMonths) != 0 {
 		m["warranty_months"] = a.WarrantyMonths
+	}
+	if a.OrderNumber != "" {
+		m["order_number"] = a.OrderNumber
 	}
 	if a.AssignedType != "" {
 		m["assigned_type"] = a.AssignedType
