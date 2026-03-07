@@ -151,9 +151,12 @@ func (st *SnipeTime) UnmarshalJSON(data []byte) error {
 		return parseErr
 	}
 
-	// Otherwise, expect the object format
+	// Otherwise, expect the object format.
+	// Snipe-IT uses "datetime" for timestamps and "date" for date-only fields
+	// (e.g. purchase_date, warranty_expires).
 	var timeObj struct {
-		Datetime string `json:"datetime"`
+		Datetime  string `json:"datetime"`
+		Date      string `json:"date"`
 		Formatted string `json:"formatted"`
 	}
 	if err := json.Unmarshal(data, &timeObj); err != nil {
@@ -162,6 +165,12 @@ func (st *SnipeTime) UnmarshalJSON(data []byte) error {
 
 	if timeObj.Datetime != "" {
 		t, err := time.Parse("2006-01-02 15:04:05", timeObj.Datetime)
+		if err != nil {
+			return err
+		}
+		st.Time = t
+	} else if timeObj.Date != "" {
+		t, err := time.Parse("2006-01-02", timeObj.Date)
 		if err != nil {
 			return err
 		}
