@@ -579,8 +579,14 @@ type Model struct {
 	// Manufacturer of this model
 	Manufacturer  Manufacturer `json:"manufacturer"`
 	
-	// FieldsetID is the ID of the custom fieldset associated with this model
+	// FieldsetID is the ID of the custom fieldset associated with this model.
+	// Write-only: create/update requests send it, but API responses return the
+	// fieldset as a nested object — read it from Fieldset instead.
 	FieldsetID    int         `json:"fieldset_id,omitempty"`
+
+	// Fieldset is the custom fieldset associated with this model as returned
+	// by GET/list responses ("fieldset": {...}). Nil when the model has none.
+	Fieldset      *Fieldset   `json:"fieldset,omitempty"`
 	
 	// EOL is the End of Life in months for this model.
 	// Uses FlexInt because the Snipe-IT API may return this as a string.

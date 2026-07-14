@@ -121,6 +121,31 @@ func (s *ModelsService) UpdateContext(ctx context.Context, id int, model Model) 
 	return &response, resp, nil
 }
 
+// Patch partially updates an existing model in Snipe-IT using HTTP PATCH.
+// Unlike Update (which uses PUT), only the fields set on model are sent and
+// modified, leaving all other fields unchanged.
+func (s *ModelsService) Patch(id int, model Model) (*ModelResponse, *http.Response, error) {
+	return s.PatchContext(context.Background(), id, model)
+}
+
+// PatchContext partially updates an existing model in Snipe-IT with the
+// provided context.
+func (s *ModelsService) PatchContext(ctx context.Context, id int, model Model) (*ModelResponse, *http.Response, error) {
+	u := fmt.Sprintf("api/v1/models/%d", id)
+	req, err := s.client.newRequestWithContext(ctx, http.MethodPatch, u, model)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var response ModelResponse
+	resp, err := s.client.Do(req, &response)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return &response, resp, nil
+}
+
 // Delete deletes a model from Snipe-IT.
 func (s *ModelsService) Delete(id int) (*http.Response, error) {
 	return s.DeleteContext(context.Background(), id)
